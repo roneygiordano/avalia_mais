@@ -31,16 +31,15 @@ def renderizar_tela_avaliacao():
     # Formulário de lançamento estruturado na ordem exata solicitada
     with st.form("form_testes_funcionais", clear_on_submit=True):
         
-        # ADEQUAÇÃO: O tipo de verificação aparece como o PRIMEIRO item do formulário, acima da data!
+        # 1. ADEQUAÇÃO: O tipo de verificação aparece acima da data
         tipo_consulta = st.selectbox("Tipo de Verificação *", ["Avaliação", "Reavaliação"])
         
-        # O campo de data vem logo abaixo
-        data_aval = st.date_input("Data da Consulta", value=date.today(), format="DD/MM/YYYY")
+        # 2. ADEQUAÇÃO: O campo de data exibe o calendário forçando o formato brasileiro DD/MM/AAAA na tela
+        data_aval = st.date_input("Data da Consulta (DD/MM/AAAA)", value=date.today(), format="DD/MM/YYYY")
         
         st.write("---")
         st.markdown("#### Testes Aplicados")
         
-        # Divisão dos 4 testes em duas colunas para melhor organização visual
         col1, col2 = st.columns(2)
         with col1:
             t1 = st.number_input("Teste 1 — Sentar e Levantar (Repetições ou seg)", min_value=0.0, step=0.1, value=0.0)
@@ -54,7 +53,7 @@ def renderizar_tela_avaliacao():
         botao_salvar = st.form_submit_button("Gravar no Histórico")
         
         if botao_salvar:
-            # Converte a data selecionada para o formato brasileiro DD/MM/AAAA antes de mandar pro banco
+            # Força o Python a transformar o objeto de data no texto puro brasileiro 'DD/MM/AAAA' para salvar no banco
             data_ptbr = data_aval.strftime("%d/%m/%Y")
             
             sucesso, mensagem = salvar_nova_avaliacao(id_paciente_alvo, data_ptbr, tipo_consulta, t1, t2, t3, t4, obs)
