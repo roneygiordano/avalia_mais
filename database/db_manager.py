@@ -2,15 +2,13 @@
 import psycopg2
 
 def conectar_banco():
-    """Estabelece conexão com o Supabase usando o formato clássico de autenticação do pooler"""
-    # CORRIGIDO: O usuário volta a ser apenas 'postgres' e injetamos o ID do projeto na linha de conexão (options)
+    """Estabelece conexão com o Supabase usando o formato de identificação exigido pelo novo pooler"""
     return psycopg2.connect(
         host="aws-0-sa-east-1.pooler.supabase.com",
-        port=6543,
+        port=5432,                          # Mudamos para a porta padrão que aceita o roteamento do ID
         database="postgres",
-        user="postgres",
-        password="EwZS+V.DY#8wkYD",
-        options="-c project=oybfpmbpengfhmxkkrxn"  # <-- Ajuste cirúrgico que faltava!
+        user="postgres.oybfpmbpengfhmxkkrxn", # <-- RESOLUÇÃO: O ID do projeto colado no usuário resolve o erro de Tenant!
+        password="EwZS+V.DY#8wkYD"
     )
 
 def inicializar_tabelas():
@@ -34,7 +32,7 @@ def inicializar_tabelas():
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS public.avaliacoes (
         id SERIAL PRIMARY KEY,
-        paciente_id INTEGER NOT NULL REFERENCES pacientes(id) ON DELETE CASCADE,
+        paciente_id INTEGER NOT NULL REFERENCES public.pacientes(id) ON DELETE CASCADE,
         data_avaliacao TEXT NOT NULL,
         tipo_consulta TEXT DEFAULT 'Avaliação',
         teste_sentar_levantar REAL,
