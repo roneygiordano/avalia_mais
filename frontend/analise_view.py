@@ -26,21 +26,24 @@ def renderizar_tela_analise():
         st.info(f"O paciente {nome_paciente} ainda não possui nenhuma avaliação registrada.")
         return
         
-    # 1. Organiza os dados brutos vindos do banco
-    colunas = ["Data", "Sentar / Levantar", "Time Up and Go", "Tandem Stand Test", "Alcance Funcional Anterior", "Observações"]
+    colunas = ["Data_Original", "Sentar / Levantar", "Time Up and Go", "Tandem Stand Test", "Alcance Funcional Anterior", "Observações"]
     df_bruto = pd.DataFrame(historico, columns=colunas)
     
-    # Ordenação cronológica segura
-    def tentar_converter_data(d_str):
+    # --- FUNÇÃO INTELIGENTE PARA CONVERTER E ORDENAR AS DATAS ---
+    def tentar_converter_para_data_real(d_str):
         for f in ("%d/%m/%Y", "%Y-%m-%d"):
             try: return datetime.strptime(d_str, f)
             except: pass
         return datetime(2000, 1, 1)
-    df_bruto["Data_Ordenacao"] = df_bruto["Data"].apply(tentar_converter_data)
+        
+    # Cria uma coluna de data real apenas para ordenação interna do banco
+    df_bruto["Data_Ordenacao"] = df_bruto["Data_Original"].apply(tentar_converter_para_data_real)
     df_bruto = df_bruto.sort_values(by="Data_Ordenacao")
     
-    # 2. INVERSÃO DE LINHAS POR COLUNAS (TRANSPOSIÇÃO)
-    # Criamos a estrutura idêntica à sua planilha
+    # Cria a coluna de texto no formato definitivo DD/MM/AAAA
+    df_bruto["Data_BR"] = df_bruto["Data_Ordenacao"].apply(lambda x: x.strftime("%d/%m/%Y"))
+    
+    # --- MONTAGEM DA TABELA HORIZONTAL IDENTICA À PLANILHA ---
     matriz_dados = {
         "Testes Aplicados": [
             "Sentar / Levantar (Força, Equilíbrio e Transição)",
@@ -50,9 +53,9 @@ def renderizar_tela_analise():
         ]
     }
     
-    # Adiciona cada data como uma nova coluna na tabela
+    # Adiciona cada data formatada como uma coluna horizontal na tabela
     for _, linha in df_bruto.iterrows():
-        data_coluna = linha["Data"]
+        data_coluna = linha["Data_BR"]
         matriz_dados[data_coluna] = [
             f"{linha['Sentar / Levantar']:,.2f}\"".replace(".", ","),
             f"{linha['Time Up and Go']:,.2f}\"".replace(".", ","),
@@ -62,7 +65,6 @@ def renderizar_tela_analise():
         
     df_planilha = pd.DataFrame(matriz_dados)
     
-    # 3. EXIBIÇÃO DA FICHA IDÊNTICA À PLANILHA
     st.markdown(f"### 📋 Ficha de Avaliações/Reavaliações — Beneficiário: **{nome_paciente}**")
     st.dataframe(df_planilha, use_container_width=True, hide_index=True)
     
@@ -81,7 +83,9 @@ def renderizar_tela_analise():
     
     fig = px.line(df_bruto, x="Data_Ordenacao", y=coluna_grafico, markers=True,
                   title=f"Evolução Temporal: {teste_escolhido}",
-                  labels={"Data_Ordenacao": "Datas das Avaliações", coluna_grafico: "Resultado"})
+                  labels={"Data_Ordenacao": "Linha do Tempo (Cronológica)", coluna_grafico: "Resultado Obtido"})
+    
+    # Força as marcações do gráfico a exibirem no formato brasileiro
     fig.update_layout(xaxis=dict(tickformat="%d/%m/%Y"))
     st.plotly_chart(fig, use_container_width=True)
     
