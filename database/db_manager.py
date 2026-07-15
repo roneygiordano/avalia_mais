@@ -2,13 +2,13 @@
 import psycopg2
 
 def conectar_banco():
-    """Estabelece conexão com o Supabase usando o Host e a Porta estáveis de Connection Pooling"""
-    # CORRIGIDO: Atualizado o host real do servidor atual e a porta estável 6543
+    """Estabelece conexão com o Supabase usando parâmetros isolados e estáveis"""
+    # Configuração direta apontando para o servidor físico de São Paulo (sa-east-1)
     return psycopg2.connect(
-        host="://supabase.com",
+        host="aws-0-sa-east-1.pooler.supabase.com",
         port=6543,
         database="postgres",
-        user="postgres.oybfpmbpengfhmxkkrxn", # O ID do projeto é embutido no usuário para autenticação segura
+        user="postgres.oybfpmbpengfhmxkkrxn",
         password="EwZS+V.DY#8wkYD"
     )
 
