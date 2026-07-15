@@ -2,13 +2,13 @@
 import psycopg2
 
 def conectar_banco():
-    """Estabelece conexão com o Supabase isolando os parâmetros para evitar conflitos de caracteres na senha"""
-    # ADEQUAÇÃO: Quebramos o link URI em parâmetros fixos e isolados. Isso protege sua senha EwZS+V.DY#8wkYD de quebrar a rede.
+    """Estabelece conexão com o Supabase usando o Host e a Porta estáveis de Connection Pooling"""
+    # CORRIGIDO: Atualizado o host real do servidor atual e a porta estável 6543
     return psycopg2.connect(
-        host="db.oybfpmbpengfhmxkkrxn.supabase.co",
-        port=5432,
+        host="://supabase.com",
+        port=6543,
         database="postgres",
-        user="postgres",
+        user="postgres.oybfpmbpengfhmxkkrxn", # O ID do projeto é embutido no usuário para autenticação segura
         password="EwZS+V.DY#8wkYD"
     )
 
