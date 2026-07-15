@@ -3,12 +3,11 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 from datetime import datetime
-from fpdf import FPDF
 from backend.paciente import listar_todos_pacientes
 from backend.avaliacao import buscar_historico_paciente
 
 def renderizar_tela_analise():
-    st.subheader("📊 Análise Gráfica e Relatórios (PDF)")
+    st.subheader("📊 Análise Gráfica e Relatórios")
     
     todos_pacientes = listar_todos_pacientes()
     if not todos_pacientes:
@@ -26,22 +25,22 @@ def renderizar_tela_analise():
         st.info(f"O paciente {nome_paciente} ainda não possui nenhuma avaliação registrada.")
         return
         
-    # --- PROCESSAMENTO SEGURO DOS DADOS ---
+    # --- PROCESSAMENTO SEGURO POR POSIÇÃO DOS DADOS ---
     dados_limpos = []
     for reg in historico:
         lista_reg = list(reg)
         
-        # Tratamento para registros antigos (com 6 colunas) injetando o tipo padrão
+        # Se for registro antigo com 6 colunas, injeta o Tipo na posição 1
         if len(lista_reg) == 6:
             lista_reg.insert(1, "Avaliação")
             
-        data_orig = str(lista_reg[0])
+        data_texto = str(lista_reg[0]).strip()
         
-        # Converte qualquer formato de data do banco para ordenar no tempo
+        # Converte a data de texto para objeto real para ordenar no tempo de forma correta
         data_objeto = None
         for formato in ("%d/%m/%Y", "%Y-%m-%d"):
             try:
-                data_objeto = datetime.strptime(data_orig.split(" ")[0], formato)
+                data_objeto = datetime.strptime(data_texto, formato)
                 break
             except:
                 pass
@@ -49,19 +48,20 @@ def renderizar_tela_analise():
         if data_objeto is None:
             data_objeto = datetime(2000, 1, 1)
             
-        lista_reg.append(data_objeto)
+        # Adiciona os itens de suporte no final do registro
+        lista_reg.append(data_objeto.strftime("%d/%m/%Y")) # Data_BR
+        lista_reg.append(data_objeto)                      # Data_Objeto
         dados_limpos.append(lista_reg)
         
-    # Criamos o DataFrame bruto e ordenamos cronologicamente de forma estrita
-    colunas_bruto = ["Data_Texto", "Tipo", "Sentar_Levantar", "TUG", "Tandem", "TAF", "Obs", "Data_Objeto"]
+    # Mapeamento exato das colunas baseado nas posições da lista
+    colunas_bruto = ["Data_Texto", "Tipo", "Sentar_Levantar", "TUG", "Tandem", "TAF", "Obs", "Data_BR", "Data_Objeto"]
     df_bruto = pd.DataFrame(dados_limpos, columns=colunas_bruto)
     df_bruto = df_bruto.sort_values(by="Data_Objeto")
     
     # --- MONTAGEM DA MATRIZ DA TABELA HORIZONTAL ---
-    # O primeiro item da lista abaixo dita o nome da linha 1 fixa!
     matriz_dados = {
         "Testes Aplicados": [
-            "Avaliação / Reavaliação",  # <-- Linha 1 Fixa!
+            "Avaliação / Reavaliação",
             "Sentar / Levantar (Força, Equilíbrio e Transição)",
             "Time Up and Go (Equilíbrio dinâmico e mobilidade funcional)",
             "Tandem Stand Test (Equilíbrio Estático)",
@@ -69,12 +69,10 @@ def renderizar_tela_analise():
         ]
     }
     
-    # Varre as consultas ordenadas e adiciona cada data no formato DD/MM/AAAA como coluna
+    # Monta as colunas horizontais da tabela
     for _, linha in df_bruto.iterrows():
-        # Força o cabeçalho da coluna a ser estritamente DD/MM/AAAA com barras
-        data_cabecalho_br = linha["Data_Objeto"].strftime("%d/%m/%Y")
+        data_cabecalho_br = str(linha["Data_BR"])
         
-        # Formatações das strings com vírgula e aspas/centímetros
         try: s_l = f"{float(linha['Sentar_Levantar']):,.2f}\"".replace(".", ",")
         except: s_l = str(linha['Sentar_Levantar'])
         
@@ -87,21 +85,38 @@ def renderizar_tela_analise():
         try: taf = f"{int(float(linha['TAF']))} cm"
         except: taf = str(linha['TAF'])
         
-        # Associa os dados à coluna de data na ordem vertical exata da planilha
         matriz_dados[data_cabecalho_br] = [
-            str(linha["Tipo"]), # Vai para a Linha 1 (Avaliação / Reavaliação)
-            s_l,                # Linha 2
-            tug,                # Linha 3
-            tandem,             # Linha 4
-            taf                 # Linha 5
+            str(linha["Tipo"]),
+            s_l,
+            tug,
+            tandem,
+            taf
         ]
         
     df_planilha = pd.DataFrame(matriz_dados)
     
-    # --- RENDERIZAÇÃO NA TELA ---
-    st.markdown(f"### 📋 Ficha de Avaliações/Reavliações — Beneficiário: **{nome_paciente}**")
+    # Exibe a tabela horizontal idêntica à planilha
+    st.markdown(f"### 📋 Ficha de Avaliações/Reavaliações — Beneficiário: **{nome_paciente}**")
     st.dataframe(df_planilha, use_container_width=True, hide_index=True)
     
+    # --- NOVO PAINEL DE EVOLUÇÃO (OBSERVAÇÕES CLÍNICAS DESTACADAS) ---
+    st.write("---")
+    st.markdown("### 📝 Prontuário / Observações Clínicas por Data")
+    
+    # Ordena as observações textuais mostrando as consultas mais recentes no topo
+    df_obs_invertido = df_bruto.sort_values(by="Data_Objeto", ascending=False)
+    for _, linha in df_obs_invertido.iterrows():
+        data_card = str(linha["Data_BR"])
+        tipo_card = str(linha["Tipo"])
+        texto_obs = str(linha["Obs"]).strip()
+        
+        # Filtra os dados nulos ou vazios
+        if not texto_obs or texto_obs == "None" or texto_obs == "":
+            texto_obs = "Nenhuma observação clínica registrada para esta data."
+            
+        # Gera uma caixa estilizada para cada anotação
+        st.info(f"📅 **{data_card} — {tipo_card}**\n\n{texto_obs}")
+            
     st.write("---")
     
     # --- BLOCO DE GRÁFICOS ---
