@@ -6,11 +6,11 @@ def conectar_banco():
     return sqlite3.connect("avalia_mais.db", check_same_thread=False)
 
 def inicializar_tabelas():
-    """Faz a limpeza automática de duplicados antigos e aplica a trava de Nome Único"""
+    """Faz a limpeza automática de duplicados antigos e garante as colunas necessárias"""
     conn = conectar_banco()
     cursor = conn.cursor()
     
-    # 1. Cria a tabela padrão se ela não existir (sem a trava ainda, caso seja antiga)
+    # 1. Cria a tabela de pacientes se não existir
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS pacientes (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -22,7 +22,7 @@ def inicializar_tabelas():
     )
     """)
     
-    # 2. FAXINA AUTOMÁTICA: Apaga os nomes duplicados se houver algum, mantendo sempre o de menor ID (o primeiro criado)
+    # 2. FAXINA AUTOMÁTICA: Apaga os nomes duplicados se houver algum
     try:
         cursor.execute("""
         DELETE FROM pacientes 
@@ -36,13 +36,12 @@ def inicializar_tabelas():
     except:
         pass
 
-    # 3. Tabela de Avaliações
+    # 3. Cria a tabela de avaliações se não existir
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS avaliacoes (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         paciente_id INTEGER NOT NULL,
         data_avaliacao TEXT NOT NULL,
-        tipo_consulta TEXT DEFAULT 'Avaliação',
         teste_sentar_levantar REAL,
         teste_tug REAL,
         teste_tandem REAL,
@@ -52,5 +51,12 @@ def inicializar_tabelas():
     )
     """)
     
-    conn.commit()
+    # 4. INJEÇÃO FORÇADA DE COLUNA: Força a coluna tipo_consulta a entrar no banco se ela não existir
+    try:
+        cursor.execute("ALTER TABLE avaliacoes ADD COLUMN tipo_consulta TEXT DEFAULT 'Avaliação'")
+        conn.commit()
+    except sqlite3.OperationalError:
+        # Se a coluna já existir, ele ignora o erro com segurança
+        pass
+    
     conn.close()
