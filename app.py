@@ -12,7 +12,7 @@ from database.db_manager import inicializar_tabelas
 from frontend.login_view import renderizar_tela_login
 from frontend.cadastro_view import renderizar_tela_cadastro
 from frontend.avaliacao_view import renderizar_tela_avaliacao
-from frontend.analise_view import renderizar_tela_analise  # IMPORTAÇÃO DA NOVA TELA
+from frontend.analise_view import renderizar_tela_analise
 from backend.auth import realizar_logout
 
 # 1. Configuração Inicial e Criação do Banco de Dados
@@ -38,6 +38,7 @@ if not st.session_state.autenticado:
 else:
     st.title("📈 Avalia+ — Painel de Controle")
     
+    # Identificação do Profissional Logado e Botão de Logout na Barra Lateral
     st.sidebar.success(f"Profissional: {st.session_state.usuario_logado}")
     if st.sidebar.button("🚪 Sair do Sistema"):
         realizar_logout()
@@ -51,7 +52,7 @@ else:
         ["1. Cadastro de Pacientes", "2. Avaliações e Reavaliações", "3. Análise Gráfica e PDF"]
     )
 
-    # Roteamento das telas
+    # Roteamento das telas com base na escolha do menu
     if menu == "1. Cadastro de Pacientes":
         renderizar_tela_cadastro()
         
@@ -59,5 +60,4 @@ else:
         renderizar_tela_avaliacao()
         
     elif menu == "3. Análise Gráfica e PDF":
-        # ATIVANDO A TELA DE GRÁFICOS E IMPRESSÃO
         renderizar_tela_analise()
