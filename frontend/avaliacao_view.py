@@ -7,7 +7,7 @@ def renderizar_tela_avaliacao():
     """Desenha a interface de lançamentos de Testes com o filtro por dia de atendimento"""
     st.subheader("⏱️ Registro de Avaliações e Reavaliações")
     
-    # 1. Aplicação da sua ideia: Filtro por dia de atendimento
+    # Filtro por dia de atendimento
     dia_selecionado = st.selectbox(
         "Filtrar pacientes pelo dia de atendimento:", 
         ["Segunda e Quarta", "Terça e Quinta"]
@@ -21,18 +21,26 @@ def renderizar_tela_avaliacao():
         return
 
     # Organiza os pacientes encontrados em um formato amigável para o Selectbox
-    # Criamos um dicionário { "Nome do Paciente": id_do_banco }
     opcoes_pacientes = {nome: id_banco for id_banco, nome in pacientes_filtrados}
     paciente_escolhido = st.selectbox("Selecione o Paciente para avaliar:", list(opcoes_pacientes.keys()))
     id_paciente_alvo = opcoes_pacientes[paciente_escolhido]
     
     st.write("---")
-    st.markdown(f"### Ficha de Avaliação: **{paciente_escolhido}**")
+    st.markdown(f"### Ficha de Lançamento: **{paciente_escolhido}**")
     
-    # 2. Formulário para os 4 Testes Funcionais solicitados por você
+    # Formulário de lançamento estruturado na ordem exata solicitada
     with st.form("form_testes_funcionais", clear_on_submit=True):
-        data_aval = st.date_input("Data da Avaliação / Reavaliação", value=date.today(), format="DD/MM/YYYY")
         
+        # ADEQUAÇÃO: O tipo de verificação aparece como o PRIMEIRO item do formulário, acima da data!
+        tipo_consulta = st.selectbox("Tipo de Verificação *", ["Avaliação", "Reavaliação"])
+        
+        # O campo de data vem logo abaixo
+        data_aval = st.date_input("Data da Consulta", value=date.today(), format="DD/MM/YYYY")
+        
+        st.write("---")
+        st.markdown("#### Testes Aplicados")
+        
+        # Divisão dos 4 testes em duas colunas para melhor organização visual
         col1, col2 = st.columns(2)
         with col1:
             t1 = st.number_input("Teste 1 — Sentar e Levantar (Repetições ou seg)", min_value=0.0, step=0.1, value=0.0)
@@ -43,11 +51,15 @@ def renderizar_tela_avaliacao():
             
         obs = st.text_area("Observações Clínicas / Evolutivas")
         
-        botao_salvar = st.form_submit_button("Gravar Avaliação no Histórico")
+        botao_salvar = st.form_submit_button("Gravar no Histórico")
         
         if botao_salvar:
-            sucesso, mensagem = salvar_nova_avaliacao(id_paciente_alvo, data_aval, t1, t2, t3, t4, obs)
+            # Converte a data selecionada para o formato brasileiro DD/MM/AAAA antes de mandar pro banco
+            data_ptbr = data_aval.strftime("%d/%m/%Y")
+            
+            sucesso, mensagem = salvar_nova_avaliacao(id_paciente_alvo, data_ptbr, tipo_consulta, t1, t2, t3, t4, obs)
             if sucesso:
                 st.success(mensagem)
+                st.rerun()
             else:
                 st.error(mensagem)
