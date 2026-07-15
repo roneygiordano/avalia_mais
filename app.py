@@ -18,6 +18,36 @@ from backend.auth import realizar_logout
 # 1. Configuração Inicial e Criação do Banco de Dados
 st.set_page_config(page_title="Avalia+", layout="wide", page_icon="📈")
 
+# ADEQUAÇÃO RESPONSIVA: Garante que o título se adapte perfeitamente ao celular e computador
+st.markdown("""
+    <style>
+        @import url('https://googleapis.com');
+        html, body, [data-testid="stMarkdownContainer"], .stText, .stSidebar {
+            font-family: 'Inter', 'Segoe UI', Helvetica, Arial, sans-serif !important;
+        }
+        
+        /* Configuração Padrão para Computadores e Tablets */
+        .topo-painel-controle {
+            font-family: 'Inter', sans-serif;
+            font-weight: 700;
+            color: #0F172A;
+            font-size: 32px;
+            margin-bottom: 25px;
+            margin-top: -10px;
+        }
+        
+        /* Configuração Exclusiva para Celulares (Telas de até 768px de largura) */
+        @media (max-width: 768px) {
+            .topo-painel-controle {
+                font-size: 22px !important; /* Diminui o texto para caber na tela do celular */
+                margin-bottom: 15px !important;
+                margin-top: 0px !important;
+                line-height: 1.3 !important;
+            }
+        }
+    </style>
+""", unsafe_allow_html=True)
+
 try:
     inicializar_tabelas()
 except Exception as e:
@@ -36,7 +66,7 @@ if not st.session_state.autenticado:
 
 # --- CENÁRIO B: USUÁRIO AUTENTICADO ---
 else:
-    st.title("📈 Avalia+ — Painel de Controle")
+    st.markdown('<div class="topo-painel-controle">📈 Avalia+ — Painel de Controle</div>', unsafe_allow_html=True)
     
     # Identificação do Profissional Logado e Botão de Logout na Barra Lateral
     st.sidebar.success(f"Profissional: {st.session_state.usuario_logado}")
