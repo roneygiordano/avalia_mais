@@ -1,12 +1,16 @@
 # database/db_manager.py
 import psycopg2
 
-# AJUSTADO: Mudamos o formato do link para o padrão estável de conexão do Supabase (porta 6543)
-CONEXAO_URI = "postgresql://postgres:EwZS+V.DY#8wkYD@://supabase.com"
-
 def conectar_banco():
-    """Estabelece conexão direta e nativa com o banco de dados Postgres do Supabase"""
-    return psycopg2.connect(CONEXAO_URI)
+    """Estabelece conexão com o Supabase isolando os parâmetros para evitar conflitos de caracteres na senha"""
+    # ADEQUAÇÃO: Quebramos o link URI em parâmetros fixos e isolados. Isso protege sua senha EwZS+V.DY#8wkYD de quebrar a rede.
+    return psycopg2.connect(
+        host="db.oybfpmbpengfhmxkkrxn.supabase.co",
+        port=5432,
+        database="postgres",
+        user="postgres",
+        password="EwZS+V.DY#8wkYD"
+    )
 
 def inicializar_tabelas():
     """Cria as tabelas direto na nuvem do Supabase se elas não existirem"""
