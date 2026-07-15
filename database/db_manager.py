@@ -1,41 +1,20 @@
 # database/db_manager.py
-import sqlite3
+from supabase import create_client, Client
 
-def conectar_banco():
-    """Estabelece a conexão com o banco de dados do Avalia+"""
-    return sqlite3.connect("avalia_mais.db", check_same_thread=False)
+# CORRIGIDO: Agora aponta direto para o seu servidor privado, e não para o site público!
+SUPABASE_URL = "https://rxginxtkxarpectwbemz.supabase.co"
+
+# Sua chave Publishable permanece exatamente a mesma
+SUPABASE_KEY = "sb_publishable_inzZh573U_sXX0qnVMLcPw_7hp6Hzw1"
+
+def conectar_banco() -> Client:
+    """Estabelece a conexão direta com o banco de dados em nuvem do Supabase"""
+    return create_client(SUPABASE_URL, SUPABASE_KEY)
 
 def inicializar_tabelas():
-    """Cria a estrutura de tabelas se elas não existirem"""
-    conn = conectar_banco()
-    cursor = conn.cursor()
-    
-    # 1. Tabela de Pacientes
-    cursor.execute("""
-    CREATE TABLE IF NOT EXISTS pacientes (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        nome TEXT NOT NULL,
-        data_nascimento TEXT NOT NULL,
-        dias_atividade TEXT NOT NULL,
-        nome_responsavel TEXT,
-        telefone TEXT
-    )
-    """)
-    
-    # 2. Tabela de Avaliações e Reavaliações (Histórico)
-    cursor.execute("""
-    CREATE TABLE IF NOT EXISTS avaliacoes (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        paciente_id INTEGER NOT NULL,
-        data_avaliacao TEXT NOT NULL,
-        teste_sentar_levantar REAL,
-        teste_tug REAL,
-        teste_tandem REAL,
-        teste_taf REAL,
-        observacoes TEXT,
-        FOREIGN KEY (paciente_id) REFERENCES pacientes(id)
-    )
-    """)
-    
-    conn.commit()
-    conn.close()
+    """Valida se a conexão com o Supabase está ativa e funcional"""
+    try:
+        supabase = conectar_banco()
+        supabase.table("pacientes").select("id").limit(1).execute()
+    except Exception as e:
+        raise Exception(f"Falha ao conectar ao Supabase. Verifique as chaves. Erro: {e}")
