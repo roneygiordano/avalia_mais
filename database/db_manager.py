@@ -6,11 +6,11 @@ def conectar_banco():
     return sqlite3.connect("avalia_mais.db", check_same_thread=False)
 
 def inicializar_tabelas():
-    """Cria a estrutura de tabelas local e garante que a coluna nova exista"""
+    """Faz a limpeza automática de duplicados antigos e aplica a trava de Nome Único"""
     conn = conectar_banco()
     cursor = conn.cursor()
     
-    # 1. Tabela de Pacientes
+    # 1. Cria a tabela padrão se ela não existir (sem a trava ainda, caso seja antiga)
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS pacientes (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -22,12 +22,27 @@ def inicializar_tabelas():
     )
     """)
     
-    # 2. Tabela de Avaliações
+    # 2. FAXINA AUTOMÁTICA: Apaga os nomes duplicados se houver algum, mantendo sempre o de menor ID (o primeiro criado)
+    try:
+        cursor.execute("""
+        DELETE FROM pacientes 
+        WHERE id NOT IN (
+            SELECT MIN(id) 
+            FROM pacientes 
+            GROUP BY nome
+        )
+        """)
+        conn.commit()
+    except:
+        pass
+
+    # 3. Tabela de Avaliações
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS avaliacoes (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         paciente_id INTEGER NOT NULL,
         data_avaliacao TEXT NOT NULL,
+        tipo_consulta TEXT DEFAULT 'Avaliação',
         teste_sentar_levantar REAL,
         teste_tug REAL,
         teste_tandem REAL,
@@ -37,12 +52,5 @@ def inicializar_tabelas():
     )
     """)
     
-    # 3. ADEQUAÇÃO FORÇADA: Tenta injetar a coluna se ela não existir no arquivo .db
-    try:
-        cursor.execute("ALTER TABLE avaliacoes ADD COLUMN tipo_consulta TEXT DEFAULT 'Avaliação'")
-    except sqlite3.OperationalError:
-        # Se der esse erro, significa que a coluna já existe, então podemos ignorar com segurança
-        pass
-        
     conn.commit()
     conn.close()
