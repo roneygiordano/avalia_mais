@@ -17,7 +17,7 @@ def renderizar_tela_analise():
     opcoes_pacientes = {f"{p[1]} (ID: {p[0]})": p[0] for p in todos_pacientes}
     paciente_selecionado = st.selectbox("Selecione o Paciente para visualizar a evolução:", list(opcoes_pacientes.keys()))
     id_paciente = opcoes_pacientes[paciente_selecionado]
-    nome_paciente = paciente_selecionado.split(" (ID:")[0]
+    nome_paciente = paciente_selecionado.split(" (ID:")
     
     historico = buscar_historico_paciente(id_paciente)
     
@@ -30,13 +30,13 @@ def renderizar_tela_analise():
     for reg in historico:
         lista_reg = list(reg)
         
-        # Se for registro antigo com 6 colunas, injeta o Tipo na posição 1
+        # Tratamento para registros antigos (com 6 colunas) injetando o Tipo na posição 1
         if len(lista_reg) == 6:
             lista_reg.insert(1, "Avaliação")
             
         data_texto = str(lista_reg[0]).strip()
         
-        # Converte a data de texto para objeto real para ordenar no tempo de forma correta
+        # Converte a data de texto para objeto real para ordenar no tempo
         data_objeto = None
         for formato in ("%d/%m/%Y", "%Y-%m-%d"):
             try:
@@ -53,7 +53,6 @@ def renderizar_tela_analise():
         lista_reg.append(data_objeto)                      # Data_Objeto
         dados_limpos.append(lista_reg)
         
-    # Mapeamento exato das colunas baseado nas posições da lista
     colunas_bruto = ["Data_Texto", "Tipo", "Sentar_Levantar", "TUG", "Tandem", "TAF", "Obs", "Data_BR", "Data_Objeto"]
     df_bruto = pd.DataFrame(dados_limpos, columns=colunas_bruto)
     df_bruto = df_bruto.sort_values(by="Data_Objeto")
@@ -69,24 +68,23 @@ def renderizar_tela_analise():
         ]
     }
     
-    # Monta as colunas horizontais da tabela
-    for _, linha in df_bruto.iterrows():
-        data_cabecalho_br = str(linha["Data_BR"])
+    for _, column_data in df_bruto.iterrows():
+        data_cabecalho_br = str(column_data["Data_BR"])
         
-        try: s_l = f"{float(linha['Sentar_Levantar']):,.2f}\"".replace(".", ",")
-        except: s_l = str(linha['Sentar_Levantar'])
+        try: s_l = f"{float(column_data['Sentar_Levantar']):,.2f}\"".replace(".", ",")
+        except: s_l = str(column_data['Sentar_Levantar'])
         
-        try: tug = f"{float(linha['TUG']):,.2f}\"".replace(".", ",")
-        except: tug = str(linha['TUG'])
+        try: tug = f"{float(column_data['TUG']):,.2f}\"".replace(".", ",")
+        except: tug = str(column_data['TUG'])
         
-        try: tandem = f"{int(float(linha['Tandem']))}\""
-        except: tandem = str(linha['Tandem'])
+        try: tandem = f"{int(float(column_data['Tandem']))}\""
+        except: tandem = str(column_data['Tandem'])
         
-        try: taf = f"{int(float(linha['TAF']))} cm"
-        except: taf = str(linha['TAF'])
+        try: taf = f"{int(float(column_data['TAF']))} cm"
+        except: taf = str(column_data['TAF'])
         
         matriz_dados[data_cabecalho_br] = [
-            str(linha["Tipo"]),
+            str(column_data["Tipo"]),
             s_l,
             tug,
             tandem,
@@ -95,27 +93,33 @@ def renderizar_tela_analise():
         
     df_planilha = pd.DataFrame(matriz_dados)
     
-    # Exibe a tabela horizontal idêntica à planilha
     st.markdown(f"### 📋 Ficha de Avaliações/Reavaliações — Beneficiário: **{nome_paciente}**")
     st.dataframe(df_planilha, use_container_width=True, hide_index=True)
     
-    # --- NOVO PAINEL DE EVOLUÇÃO (OBSERVAÇÕES CLÍNICAS DESTACADAS) ---
+    # --- PAINEL DE EVOLUÇÃO (OBSERVAÇÕES CLÍNICAS INTELIGENTES) ---
     st.write("---")
     st.markdown("### 📝 Prontuário / Observações Clínicas por Data")
     
     # Ordena as observações textuais mostrando as consultas mais recentes no topo
     df_obs_invertido = df_bruto.sort_values(by="Data_Objeto", ascending=False)
-    for _, linha in df_obs_invertido.iterrows():
-        data_card = str(linha["Data_BR"])
-        tipo_card = str(linha["Tipo"])
-        texto_obs = str(linha["Obs"]).strip()
+    
+    # Variável para controlar se alguma observação válida foi exibida
+    exibiu_alguma_obs = False
+    
+    for _, column_data in df_obs_invertido.iterrows():
+        data_card = str(column_data["Data_BR"])
+        tipo_card = str(column_data["Tipo"])
+        texto_obs = str(column_data["Obs"]).strip()
         
-        # Filtra os dados nulos ou vazios
-        if not texto_obs or texto_obs == "None" or texto_obs == "":
-            texto_obs = "Nenhuma observação clínica registrada para esta data."
+        # ADEQUAÇÃO: O bloco IF agora descarta textos vazios, nulos ou a palavra 'None'
+        if texto_obs and texto_obs != "None" and texto_obs != "":
+            exibiu_alguma_obs = True
+            # Só desenha a caixa de texto azul se houver conteúdo real!
+            st.info(f"📅 **{data_card} — {tipo_card}**\n\n{texto_obs}")
             
-        # Gera uma caixa estilizada para cada anotação
-        st.info(f"📅 **{data_card} — {tipo_card}**\n\n{texto_obs}")
+    # Se o laço terminou e nenhuma data possuía observações escritas
+    if not exibiu_alguma_obs:
+        st.write("*Nenhuma anotação clínica foi registrada no histórico deste paciente.*")
             
     st.write("---")
     
