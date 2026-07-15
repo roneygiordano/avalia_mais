@@ -1,8 +1,8 @@
 # database/db_manager.py
 import psycopg2
 
-# Conexão direta e nativa com o banco de dados Postgres do seu Supabase
-CONEXAO_URI = "postgresql://postgres:EwZS+V.DY#8wkYD@db.oybfpmbpengfhmxkkrxn.supabase.co:5432/postgres"
+# AJUSTADO: Mudamos o formato do link para o padrão estável de conexão do Supabase (porta 6543)
+CONEXAO_URI = "postgresql://postgres:EwZS+V.DY#8wkYD@://supabase.com"
 
 def conectar_banco():
     """Estabelece conexão direta e nativa com o banco de dados Postgres do Supabase"""
