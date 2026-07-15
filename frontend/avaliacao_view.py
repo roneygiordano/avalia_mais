@@ -1,81 +1,139 @@
-# frontend/avaliacao_view.py
+# frontend/analise_view.py
 import streamlit as st
-from datetime import date
-from backend.avaliacao import (
-    buscar_pacientes_por_dia, 
-    salvar_nova_avaliacao, 
-    zerar_historico_do_paciente
-)
+import pandas as pd
+import plotly.express as px
+from datetime import datetime
+from backend.paciente import listar_todos_pacientes
+from backend.avaliacao import buscar_historico_paciente
 
-def renderizar_tela_avaliacao():
-    """Desenha a interface de lançamentos de Testes com o filtro por dia de atendimento"""
-    st.subheader("⏱️ Registro de Avaliações e Reavaliações")
+def renderizar_tela_analise():
+    st.subheader("📊 Análise Gráfica e Relatórios")
     
-    # Filtro por dia de atendimento
-    dia_selecionado = st.selectbox(
-        "Filtrar pacientes pelo dia de atendimento:", 
-        ["Segunda e Quarta", "Terça e Quinta"]
-    )
-    
-    # Busca apenas os pacientes daquele dia específico
-    pacientes_filtrados = buscar_pacientes_por_dia(dia_selecionado)
-    
-    if not pacientes_filtrados:
-        st.warning(f"Nenhum paciente cadastrado para os dias de: {dia_selecionado}.")
+    todos_pacientes = listar_todos_pacientes()
+    if not todos_pacientes:
+        st.warning("Nenhum paciente cadastrado no sistema para análise.")
         return
-
-    # Organiza os pacientes encontrados em um formato amigável para o Selectbox
-    opcoes_pacientes = {nome: id_banco for id_banco, nome in pacientes_filtrados}
-    paciente_escolhido = st.selectbox("Selecione o Paciente para avaliar:", list(opcoes_pacientes.keys()))
-    id_paciente_alvo = opcoes_pacientes[paciente_escolhido]
+        
+    opcoes_pacientes = {f"{p[1]} (ID: {p[0]})": p[0] for p in todos_pacientes}
+    paciente_selecionado = st.selectbox("Selecione o Paciente para visualizar a evolução:", list(opcoes_pacientes.keys()))
+    id_paciente = opcoes_pacientes[paciente_selecionado]
+    nome_paciente = paciente_selecionado.split(" (ID:")[0]
     
-    st.write("---")
-    st.markdown(f"### Ficha de Lançamento: **{paciente_escolhido}**")
+    historico = buscar_historico_paciente(id_paciente)
     
-    # Formulário de lançamento estruturado na ordem exata solicitada
-    with st.form("form_testes_funcionais", clear_on_submit=True):
+    if not historico:
+        st.info(f"O paciente {nome_paciente} ainda não possui nenhuma avaliação registrada.")
+        return
         
-        # 1. Tipo de verificação aparece acima da data
-        tipo_consulta = st.selectbox("Tipo de Verificação *", ["Avaliação", "Reavaliação"])
+    # --- PROCESSAMENTO SEGURO DOS DADOS ---
+    dados_limpos = []
+    for reg in historico:
+        lista_reg = list(reg)
         
-        # 2. O campo de data exibe o calendário forçando o formato brasileiro DD/MM/AAAA na tela
-        data_aval = st.date_input("Data da Consulta", value=date.today(), format="DD/MM/YYYY")
-        
-        st.write("---")
-        st.markdown("#### Testes Aplicados")
-        
-        col1, col2 = st.columns(2)
-        with col1:
-            t1 = st.number_input("Teste 1 — Sentar e Levantar (Repetições ou seg)", min_value=0.0, step=0.1, value=0.0)
-            t2 = st.number_input("Teste 2 — Time Up and Go (Segundos)", min_value=0.0, step=0.1, value=0.0)
-        with col2:
-            t3 = st.number_input("Teste 3 — Tandem Stand Test (Segundos)", min_value=0.0, step=0.1, value=0.0)
-            t4 = st.number_input("Teste 4 — Alcance Funcional Anterior - TAF (cm)", min_value=0.0, step=0.1, value=0.0)
+        # Tratamento para registros antigos (com 6 colunas) injetando o tipo padrão na posição 1
+        if len(lista_reg) == 6:
+            lista_reg.insert(1, "Avaliação")
             
-        obs = st.text_area("Observações Clínicas / Evolutivas")
+        data_orig = str(lista_reg[0])
         
-        botao_salvar = st.form_submit_button("💾 Gravar no Histórico", type="primary")
-            
-        if botao_salvar:
-            data_ptbr = data_aval.strftime("%d/%m/%Y")
-            sucesso, message = salvar_nova_avaliacao(id_paciente_alvo, data_ptbr, tipo_consulta, t1, t2, t3, t4, obs)
-            if sucesso:
-                st.success(message)
-                st.rerun()
-            else:
-                st.error(message)
+        # Converte a data de texto para objeto datetime real para fazer a ordenação cronológica certa
+        data_objeto = None
+        for formato in ("%d/%m/%Y", "%Y-%m-%d"):
+            try:
+                data_objeto = datetime.strptime(data_orig.split(" ")[0], formato)
+                break
+            except:
+                pass
                 
-    # --- BLOCO VISUAL: PERMISSÃO PARA ZERAR A TABELA INTEIRA ---
+        if data_objeto is None:
+            data_objeto = datetime(2000, 1, 1)
+            
+        # Adiciona a data formatada e o objeto de ordenação no final da lista
+        lista_reg.append(data_objeto.strftime("%d/%m/%Y")) # Posição [7] - Data_BR
+        lista_reg.append(data_objeto)                      # Posição [8] - Data_Objeto
+        dados_limpos.append(lista_reg)
+        
+    # Mapeia as colunas baseado no retorno do backend
+    colunas_bruto = ["Data_Texto", "Tipo", "Sentar_Levantar", "TUG", "Tandem", "TAF", "Obs", "Data_BR", "Data_Objeto"]
+    df_bruto = pd.DataFrame(dados_limpos, columns=colunas_bruto)
+    df_bruto = df_bruto.sort_values(by="Data_Objeto")
+    
+    # --- MONTAGEM DA MATRIZ DA TABELA HORIZONTAL ---
+    matriz_dados = {
+        "Testes Aplicados": [
+            "Avaliação / Reavaliação",
+            "Sentar / Levantar (Força, Equilíbrio e Transição)",
+            "Time Up and Go (Equilíbrio dinâmico e mobilidade funcional)",
+            "Tandem Stand Test (Equilíbrio Estático)",
+            "Alcance Funcional Anterior (TAF - Deslocar / Estabilidade anterior)"
+        ]
+    }
+    
+    # Preenche as colunas horizontais com as datas brasileiras ordenadas
+    for _, linha in df_bruto.iterrows():
+        data_cabecalho_br = str(linha["Data_BR"])
+        
+        try: s_l = f"{float(linha['Sentar_Levantar']):,.2f}\"".replace(".", ",")
+        except: s_l = str(linha['Sentar_Levantar'])
+        
+        try: tug = f"{float(linha['TUG']):,.2f}\"".replace(".", ",")
+        except: tug = str(linha['TUG'])
+        
+        try: tandem = f"{int(float(linha['Tandem']))}\""
+        except: tandem = str(linha['Tandem'])
+        
+        try: taf = f"{int(float(linha['TAF']))} cm"
+        except: taf = str(linha['TAF'])
+        
+        matriz_dados[data_cabecalho_br] = [
+            str(linha["Tipo"]),
+            s_l,
+            tug,
+            tandem,
+            taf
+        ]
+        
+    df_planilha = pd.DataFrame(matriz_dados)
+    
+    # --- RENDERIZAÇÃO DA TABELA HORIZONTAL NA TELA ---
+    st.markdown(f"### 📋 Ficha de Avaliações/Reavaliações — Beneficiário: **{nome_paciente}**")
+    st.dataframe(df_planilha, use_container_width=True, hide_index=True)
+    
+    # --- NOVO PAINEL DE EVOLUÇÃO (OBSERVAÇÕES CLÍNICAS) ---
     st.write("---")
-    st.markdown("### 🧹 Zona de Perigo — Limpeza Geral da Tabela")
-    st.markdown("Deseja apagar permanentemente **todos** os testes e avaliações já registrados na tabela do sistema?")
+    st.markdown("### 📝 Prontuário / Observações Clínicas por Data")
     
-    confirmar_limpeza = st.checkbox("Confirmo que quero APAGAR TODOS os históricos de testes cadastrados no sistema.", key="chk_limpar_global")
+    # Exibe as anotações textuais ordenadas da mais recente para a mais antiga
+    df_obs_invertido = df_bruto.sort_values(by="Data_Objeto", ascending=False)
+    for _, linha in df_obs_invertido.iterrows():
+        data_card = str(linha["Data_BR"])
+        tipo_card = str(linha["Tipo"])
+        texto_obs = str(linha["Obs"]).strip()
+        
+        if not texto_obs or texto_obs == "None" or texto_obs == "":
+            texto_obs = "Nenhuma observação clínica registrada para esta data."
+            
+        with st.chat_message("user", avatar="🩺"):
+            st.markdown(f"**{data_card} — {tipo_card}**")
+            st.info(texto_obs)
+            
+    st.write("---")
     
-    if st.button("❌ Apagar Todos os Testes Gravados", type="primary", disabled=not confirmar_limpeza, key="btn_limpar_global"):
-        sucesso, msg = zerar_historico_do_paciente(id_paciente_alvo)
-        if sucesso:
-            st.success(msg)
-            st.rerun()
-        else:
-            st.error(msg)
+    # --- BLOCO DE GRÁFICOS ---
+    st.markdown("### 📈 Gráfico Comparativo de Evolução")
+    testes_grafico = {
+        "Teste 1 — Sentar e Levantar": "Sentar_Levantar",
+        "Teste 2 — Time Up and Go": "TUG",
+        "Teste 3 — Tandem Stand Test": "Tandem",
+        "Teste 4 — Alcance Funcional Anterior": "TAF"
+    }
+    teste_escolhido = st.selectbox("Escolha o teste para projetar no gráfico:", list(testes_grafico.keys()))
+    coluna_grafico = testes_grafico[teste_escolhido]
+    
+    df_bruto[coluna_grafico] = pd.to_numeric(df_bruto[coluna_grafico], errors='coerce')
+    
+    fig = px.line(df_bruto, x="Data_Objeto", y=coluna_grafico, markers=True,
+                  title=f"Evolução Temporal: {teste_escolhido}",
+                  labels={"Data_Objeto": "Linha do Tempo (Cronológica)", coluna_grafico: "Resultado Obtido"})
+    fig.update_layout(xaxis=dict(tickformat="%d/%m/%Y"))
+    st.plotly_chart(fig, use_container_width=True)
