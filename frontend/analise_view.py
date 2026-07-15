@@ -26,26 +26,32 @@ def renderizar_tela_analise():
         st.info(f"O paciente {nome_paciente} ainda não possui nenhuma avaliação registrada.")
         return
         
-    colunas = ["Data_Original", "Sentar / Levantar", "Time Up and Go", "Tandem Stand Test", "Alcance Funcional Anterior", "Observações"]
-    df_bruto = pd.DataFrame(historico, columns=colunas)
+    # --- AJUSTE DE COMPATIBILIDADE PARA DADOS ANTIGOS E NOVOS ---
+    dados_ajustados = []
+    for registro in historico:
+        lista_reg = list(registro)
+        # Se o registro tiver apenas 6 elementos (antigo, sem o campo Tipo)
+        if len(lista_reg) == 6:
+            # Injeta 'Avaliação' como padrão na segunda posição
+            lista_reg.insert(1, "Avaliação")
+        dados_ajustados.append(lista_reg)
+        
+    colunas = ["Data", "Tipo", "Sentar / Levantar", "Time Up and Go", "Tandem Stand Test", "Alcance Funcional Anterior", "Observações"]
+    df_bruto = pd.DataFrame(dados_ajustados, columns=colunas)
     
-    # --- FUNÇÃO INTELIGENTE PARA CONVERTER E ORDENAR AS DATAS ---
-    def tentar_converter_para_data_real(d_str):
+    # Ordenação cronológica
+    def tentar_converter_data(d_str):
         for f in ("%d/%m/%Y", "%Y-%m-%d"):
             try: return datetime.strptime(d_str, f)
             except: pass
         return datetime(2000, 1, 1)
-        
-    # Cria uma coluna de data real apenas para ordenação interna do banco
-    df_bruto["Data_Ordenacao"] = df_bruto["Data_Original"].apply(tentar_converter_para_data_real)
+    df_bruto["Data_Ordenacao"] = df_bruto["Data"].apply(tentar_converter_data)
     df_bruto = df_bruto.sort_values(by="Data_Ordenacao")
     
-    # Cria a coluna de texto no formato definitivo DD/MM/AAAA
-    df_bruto["Data_BR"] = df_bruto["Data_Ordenacao"].apply(lambda x: x.strftime("%d/%m/%Y"))
-    
-    # --- MONTAGEM DA TABELA HORIZONTAL IDENTICA À PLANILHA ---
+    # --- TRANSPOSIÇÃO HORIZONTAL ---
     matriz_dados = {
         "Testes Aplicados": [
+            "Avaliação / Reavaliação",
             "Sentar / Levantar (Força, Equilíbrio e Transição)",
             "Time Up and Go (Equilíbrio dinâmico e mobilidade funcional)",
             "Tandem Stand Test (Equilíbrio Estático)",
@@ -53,10 +59,10 @@ def renderizar_tela_analise():
         ]
     }
     
-    # Adiciona cada data formatada como uma coluna horizontal na tabela
     for _, linha in df_bruto.iterrows():
-        data_coluna = linha["Data_BR"]
+        data_coluna = linha["Data"]
         matriz_dados[data_coluna] = [
+            str(linha["Tipo"]),
             f"{linha['Sentar / Levantar']:,.2f}\"".replace(".", ","),
             f"{linha['Time Up and Go']:,.2f}\"".replace(".", ","),
             f"{int(linha['Tandem Stand Test'])}\"",
@@ -83,30 +89,6 @@ def renderizar_tela_analise():
     
     fig = px.line(df_bruto, x="Data_Ordenacao", y=coluna_grafico, markers=True,
                   title=f"Evolução Temporal: {teste_escolhido}",
-                  labels={"Data_Ordenacao": "Linha do Tempo (Cronológica)", coluna_grafico: "Resultado Obtido"})
-    
-    # Força as marcações do gráfico a exibirem no formato brasileiro
+                  labels={"Data_Ordenacao": "Datas das Avaliações", coluna_grafico: "Resultado"})
     fig.update_layout(xaxis=dict(tickformat="%d/%m/%Y"))
     st.plotly_chart(fig, use_container_width=True)
-    
-    # --- BLOCO DE PDF ---
-    st.write("---")
-    if st.button("📄 Gerar Relatório em PDF"):
-        pdf = FPDF()
-        pdf.add_page()
-        pdf.set_font("Arial", "B", 14)
-        pdf.cell(190, 10, "SISTEMA AVALIA+ — FICHA EVOLUTIVA", ln=True, align="C")
-        pdf.set_font("Arial", "", 11)
-        pdf.cell(190, 8, f"Beneficiario: {nome_paciente}", ln=True)
-        pdf.ln(5)
-        
-        for _, col in df_planilha.iterrows():
-            texto_linha = f"{col['Testes Aplicados']}: "
-            for data in list(df_planilha.columns)[1:]:
-                texto_linha += f"[{data}: {col[data]}] "
-            pdf.multi_cell(190, 6, texto_linha)
-            pdf.ln(2)
-            
-        pdf_output = pdf.output(dest='S').encode('latin1', errors='ignore')
-        st.download_button(label="⬇️ Baixar Ficha PDF", data=pdf_output, 
-                           file_name=f"Ficha_{nome_paciente.replace(' ', '_')}.pdf", mime="application/pdf")
