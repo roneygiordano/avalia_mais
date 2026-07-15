@@ -6,7 +6,7 @@ def conectar_banco():
     return sqlite3.connect("avalia_mais.db", check_same_thread=False)
 
 def inicializar_tabelas():
-    """Cria a estrutura de tabelas local se elas não existirem"""
+    """Cria a estrutura de tabelas local e garante que a coluna nova exista"""
     conn = conectar_banco()
     cursor = conn.cursor()
     
@@ -36,5 +36,13 @@ def inicializar_tabelas():
         FOREIGN KEY (paciente_id) REFERENCES pacientes(id)
     )
     """)
+    
+    # 3. ADEQUAÇÃO FORÇADA: Tenta injetar a coluna se ela não existir no arquivo .db
+    try:
+        cursor.execute("ALTER TABLE avaliacoes ADD COLUMN tipo_consulta TEXT DEFAULT 'Avaliação'")
+    except sqlite3.OperationalError:
+        # Se der esse erro, significa que a coluna já existe, então podemos ignorar com segurança
+        pass
+        
     conn.commit()
     conn.close()
