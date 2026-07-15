@@ -26,12 +26,13 @@ def salvar_nova_avaliacao(paciente_id, data_aval, tipo_consulta, t1, t2, t3, t4,
         registro_existente = cursor.fetchone()
         
         if registro_existente:
+            id_reg = registro_existente[0]
             cursor.execute("""
                 UPDATE avaliacoes 
                 SET tipo_consulta = ?, teste_sentar_levantar = ?, teste_tug = ?, 
                     teste_tandem = ?, teste_taf = ?, observacoes = ?
                 WHERE id = ?
-            """, (tipo_consulta, float(t1), float(t2), float(t3), float(t4), obs, registro_existente[0]))
+            """, (tipo_consulta, float(t1), float(t2), float(t3), float(t4), obs, id_reg))
             mensagem_retorno = "Dados da data atualizados com sucesso!"
         else:
             cursor.execute("""
@@ -64,14 +65,11 @@ def buscar_historico_paciente(paciente_id):
         return []
 
 def zerar_historico_do_paciente(paciente_id):
-    """ADEQUAÇÃO: Reseta e limpa COMPLETAMENTE a tabela de avaliações do sistema de forma segura"""
+    """Reseta e limpa COMPLETAMENTE a tabela de avaliações do sistema de forma segura"""
     try:
         conn = conectar_banco()
         cursor = conn.cursor()
-        
-        # Esvazia completamente a tabela de avaliações inteira do banco
         cursor.execute("DELETE FROM avaliacoes")
-        
         conn.commit()
         conn.close()
         return True, "Todos os dados do Paciente foram apagados"
