@@ -47,9 +47,29 @@ def salvar_nova_avaliacao(paciente_id, data_aval, tipo_consulta, t1, t2, t3, t4,
         return False, f"Erro ao processar gravação: {e}"
 
 def buscar_historico_paciente(paciente_id):
+    """Busca o histórico unificando dados órfãos causados pela deleção de duplicados"""
     try:
         conn = conectar_banco()
         cursor = conn.cursor()
+        
+        # --- AJUSTE INTELIGENTE DE HERANÇA ---
+        # 1. Descobre o nome do paciente atual baseado no ID selecionado na tela
+        cursor.execute("SELECT nome FROM pacientes WHERE id = ?", (int(paciente_id),))
+        res_nome = cursor.fetchone()
+        
+        if res_nome:
+            nome_real = res_nome[0]
+            # 2. Atualiza todas as avaliações que por ventura usavam IDs antigos de cópias desse mesmo nome
+            cursor.execute("""
+                UPDATE avaliacoes 
+                SET paciente_id = ? 
+                WHERE paciente_id IN (
+                    SELECT id FROM pacientes WHERE nome = ?
+                ) AND paciente_id != ?
+            """, (int(paciente_id), nome_real, int(paciente_id)))
+            conn.commit()
+        
+        # 3. Busca o histórico de forma tradicional (agora com os dados grudados no lugar certo!)
         cursor.execute("""
             SELECT data_avaliacao, tipo_consulta, teste_sentar_levantar, teste_tug, teste_tandem, teste_taf, observacoes
             FROM avaliacoes WHERE paciente_id = ? ORDER BY data_avaliacao ASC
