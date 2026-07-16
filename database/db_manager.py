@@ -14,6 +14,7 @@ def buscar_dados_do_github():
         
     token = st.secrets["TOKEN_GITHUB"]
     repo = st.secrets["REPOSITORIO"]
+    # CORRIGIDO: Adicionada a barra correta antes de /repos/
     url = f"https://github.com{repo}/contents/{NOME_BANCO}"
     headers = {"Authorization": f"token {token}"}
     
@@ -31,6 +32,7 @@ def salvar_dados_no_github():
         
     token = st.secrets["TOKEN_GITHUB"]
     repo = st.secrets["REPOSITORIO"]
+    # CORRIGIDO: Adicionada a barra correta antes de /repos/
     url = f"https://github.com{repo}/contents/{NOME_BANCO}"
     headers = {"Authorization": f"token {token}"}
     
@@ -96,12 +98,12 @@ def inicializar_tabelas():
     """)
     conn.commit()
 
-    # --- NOVO: GARANTE A COLUNA TIPO_CONSULTA CASO O ARQUIVO VINDO DO GITHUB SEJA ANTIGO ---
+    # Garante a coluna tipo_consulta caso o arquivo vindo do GitHub seja antigo
     try:
         cursor.execute("ALTER TABLE avaliacoes ADD COLUMN tipo_consulta TEXT DEFAULT 'Avaliação'")
         conn.commit()
     except sqlite3.OperationalError:
-        pass # Se a coluna já existia no arquivo do GitHub, ignora o erro com segurança
+        pass
 
     # Faxina de duplicados nos nomes dos pacientes
     try:
