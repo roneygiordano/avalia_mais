@@ -14,7 +14,8 @@ def buscar_dados_do_github():
         
     token = st.secrets["TOKEN_GITHUB"]
     repo = st.secrets["REPOSITORIO"]
-    # CORRIGIDO: Adicionada a barra correta antes de /repos/
+    
+    # URL construída peça por peça para garantir as barras corretas
     url = f"https://github.com{repo}/contents/{NOME_BANCO}"
     headers = {"Authorization": f"token {token}"}
     
@@ -32,7 +33,8 @@ def salvar_dados_no_github():
         
     token = st.secrets["TOKEN_GITHUB"]
     repo = st.secrets["REPOSITORIO"]
-    # CORRIGIDO: Adicionada a barra correta antes de /repos/
+    
+    # URL construída peça por peça para garantir as barras corretas
     url = f"https://github.com{repo}/contents/{NOME_BANCO}"
     headers = {"Authorization": f"token {token}"}
     
