@@ -61,12 +61,12 @@ if 'usuario_logado' not in st.session_state:
 
 # --- CENÁRIO A: USUÁRIO NÃO LOGADO ---
 if not st.session_state.autenticado:
-    st.title("📈 Avalia+ — Controle de Acesso")
+    st.title("📈 Avalia+ ")
     renderizar_tela_login()
 
 # --- CENÁRIO B: USUÁRIO AUTENTICADO ---
 else:
-    st.markdown('<div class="topo-painel-controle">📈 Avalia+ — Painel de Controle</div>', unsafe_allow_html=True)
+    st.markdown('<div class="topo-painel-controle">📈 Avalia+ </div>', unsafe_allow_html=True)
     
     # Identificação do Profissional Logado e Botão de Logout na Barra Lateral
     st.sidebar.success(f"Profissional: {st.session_state.usuario_logado}")
