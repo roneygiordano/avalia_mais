@@ -60,11 +60,13 @@ def conectar_banco():
     return sqlite3.connect(NOME_BANCO, check_same_thread=False)
 
 def inicializar_tabelas():
-    """Cria a estrutura de tabelas e puxa o backup do GitHub se necessário"""
+    """Cria a estrutura de tabelas, puxa o backup do GitHub e limpa duplicados"""
     # 1. Tenta resgatar os dados salvos no GitHub antes de iniciar
     if not os.path.exists(NOME_BANCO):
-        try: buscar_dados_do_github()
-        except: pass
+        try:
+            buscar_dados_do_github()
+        except:
+            pass
 
     conn = conectar_banco()
     cursor = conn.cursor()
@@ -96,6 +98,22 @@ def inicializar_tabelas():
         FOREIGN KEY (paciente_id) REFERENCES pacientes(id)
     )
     """)
-    
     conn.commit()
+
+    # --- FAXINA AUTOMÁTICA DE DUPLICADOS ---
+    try:
+        # Remove as linhas repetidas mantendo apenas o registro original (menor ID)
+        cursor.execute("""
+        DELETE FROM pacientes 
+        WHERE id NOT IN (
+            SELECT MIN(id) FROM pacientes GROUP BY nome
+        )
+        """)
+        conn.commit()
+        
+        # Envia a versão limpa imediatamente para o repositório do GitHub
+        salvar_dados_no_github()
+    except:
+        pass
+
     conn.close()
