@@ -24,14 +24,25 @@ def listar_todos_pacientes():
     try:
         conn = st.connection("supabase", type=SupabaseConnection)
         
-        # Busca os mesmos campos que seu frontend espera receber
-        resposta = conn.table("pacientes").select("id, nome, data_nascimento, dias_atividade").order("nome").execute()
+        # Busca todas as colunas da tabela de pacientes ordenando por nome
+        resposta = conn.table("pacientes").select("*").order("nome").execute()
         
-        # Converte o dicionário retornado pelo Supabase em tuplas para o seu frontend não quebrar
-        dados = [(p["id"], p["nome"], p["data_nascimento"], p["dias_atividade"]) for p in resposta.data]
+        if not resposta.data:
+            return []
+            
+        # Monta a lista usando .get() seguro, garantindo as posições exatas esperadas pelo frontend:
+        # Posição 0: ID, Posição 1: Nome, Posição 2: Data Nasc, Posição 3: Dias Atividade
+        dados = []
+        for p in resposta.data:
+            dados.append((
+                p.get("id"),
+                p.get("nome"),
+                p.get("data_nascimento"),
+                p.get("dias_atividade")
+            ))
         return dados
     except Exception as e:
-        st.error(f"Erro ao listar pacientes: {e}")
+        st.error(f"Erro ao listar pacientes do Supabase: {e}")
         return []
 
 def atualizar_dados_paciente(id_paciente, nome, data_nasc, dias_atividade, responsavel, telefone):
@@ -48,7 +59,7 @@ def atualizar_dados_paciente(id_paciente, nome, data_nasc, dias_atividade, respo
         
         # Atualiza o registro específico usando o ID como filtro
         conn.table("pacientes").update(dados_atualizados).eq("id", id_paciente).execute()
-        return True, "Dados atualizados na nuvem!"
+        return True, "Dados updated na nuvem!"
     except Exception as e:
         return False, f"Erro ao atualizar: {e}"
 
@@ -57,7 +68,6 @@ def excluir_paciente_do_banco(id_paciente):
         conn = st.connection("supabase", type=SupabaseConnection)
         
         # Remove primeiro as avaliações ligadas ao paciente e depois o paciente (para não dar erro de chave estrangeira)
-        # Nota: Ajuste o nome da coluna caso na tabela avaliacoes você use 'id_paciente' em vez de 'paciente_id'
         try:
             conn.table("avaliacoes").delete().eq("paciente_id", id_paciente).execute()
         except:
