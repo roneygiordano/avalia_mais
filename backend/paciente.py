@@ -12,7 +12,7 @@ def salvar_novo_paciente(nome, data_nasc, dias_atividade, responsavel, telefone)
         conn.commit()
         conn.close()
         
-        # Sincroniza o arquivo com o GitHub imediatamente
+        # Sincroniza usando a função segura central do db_manager
         salvar_dados_no_github()
         return True, "Paciente cadastrado e sincronizado com sucesso!"
     except Exception as e:
