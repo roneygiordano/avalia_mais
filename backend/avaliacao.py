@@ -1,91 +1,79 @@
 # backend/avaliacao.py
-from database.db_manager import conectar_banco, salvar_dados_no_github
+import streamlit as st
+from st_supabase_connection import SupabaseConnection
 
 def buscar_pacientes_por_dia(dia_semana):
     try:
-        conn = conectar_banco()
-        cursor = conn.cursor()
-        cursor.execute("SELECT id, nome FROM pacientes WHERE dias_atividade = ? ORDER BY nome ASC", (dia_semana,))
-        dados = cursor.fetchall()
-        conn.close()
+        conn = st.connection("supabase", type=SupabaseConnection)
+        resposta = conn.table("pacientes").select("id, nome").eq("dias_atividade", dia_semana).order("nome").execute()
+        dados = [(p["id"], p["nome"]) for p in resposta.data]
         return dados
     except Exception:
         return []
 
 def salvar_nova_avaliacao(paciente_id, data_aval, tipo_consulta, t1, t2, t3, t4, obs):
     try:
-        conn = conectar_banco()
-        cursor = conn.cursor()
+        conn = st.connection("supabase", type=SupabaseConnection)
         
-        cursor.execute("""
-            SELECT id FROM avaliacoes WHERE paciente_id = ? AND data_avaliacao = ?
-        """, (int(paciente_id), str(data_aval)))
-        resultado = cursor.fetchone()
+        # Verifica se já existe avaliação para o mesmo paciente nesta data
+        resultado = conn.table("avaliacoes").select("id").eq("paciente_id", int(paciente_id)).eq("data_avaliacao", str(data_aval)).execute()
         
-        if resultado:
-            cursor.execute("""
-                UPDATE avaliacoes 
-                SET tipo_consulta = ?, teste_sentar_levantar = ?, teste_tug = ?, 
-                    teste_tandem = ?, teste_taf = ?, observacoes = ?
-                WHERE id = ?
-            """, (tipo_consulta, float(t1), float(t2), float(t3), float(t4), obs, resultado[0]))
-            mensagem_retorno = "Dados da data atualizados com sucesso!"
+        dados_avaliacao = {
+            "paciente_id": int(paciente_id),
+            "data_avaliacao": str(data_aval),
+            "tipo_consulta": tipo_consulta,
+            "teste_sentar_levantar": float(t1),
+            "teste_tug": float(t2),
+            "teste_tandem": float(t3),
+            "teste_taf": float(t4),
+            "observacoes": obs
+        }
+        
+        if resultado.data:
+            id_registro = resultado.data[0]["id"]
+            conn.table("avaliacoes").update(dados_avaliacao).eq("id", id_registro).execute()
+            mensagem_retorno = "Dados da data atualizados com sucesso no Supabase!"
         else:
-            cursor.execute("""
-                INSERT INTO avaliacoes (
-                    paciente_id, data_avaliacao, tipo_consulta,
-                    teste_sentar_levantar, teste_tug, teste_tandem, teste_taf, observacoes
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            """, (int(paciente_id), str(data_aval), tipo_consulta, float(t1), float(t2), float(t3), float(t4), obs))
-            mensagem_retorno = "Nova avaliação gravada com sucesso!"
+            conn.table("avaliacoes").insert(dados_avaliacao).execute()
+            mensagem_retorno = "Nova avaliação gravada com sucesso no Supabase!"
             
-        conn.commit()
-        conn.close()
-        
-        # Sincroniza usando a função segura central do db_manager
-        salvar_dados_no_github()
         return True, mensagem_retorno
     except Exception as e:
         return False, f"Erro ao processar gravação: {e}"
 
 def buscar_historico_paciente(paciente_id):
     try:
-        conn = conectar_banco()
-        cursor = conn.cursor()
+        conn = st.connection("supabase", type=SupabaseConnection)
         
-        # Sincronização inteligente de herança para IDs órfãos pós-faxina
-        cursor.execute("SELECT nome FROM pacientes WHERE id = ?", (int(paciente_id),))
-        res_nome = cursor.fetchone()
+        # Busca o histórico ordenando por data
+        resposta = conn.table("avaliacoes").select(
+            "data_avaliacao, tipo_consulta, teste_sentar_levantar, teste_tug, teste_tandem, teste_taf, observacoes"
+        ).eq("paciente_id", int(paciente_id)).execute()
         
-        if res_nome:
-            nome_real = res_nome[0]
-            cursor.execute("""
-                UPDATE avaliacoes 
-                SET paciente_id = ? 
-                WHERE paciente_id IN (
-                    SELECT id FROM pacientes WHERE nome = ?
-                ) AND paciente_id != ?
-            """, (int(paciente_id), nome_real, int(paciente_id)))
-            conn.commit()
-        
-        cursor.execute("""
-            SELECT data_avaliacao, tipo_consulta, teste_sentar_levantar, teste_tug, teste_tandem, teste_taf, observacoes
-            FROM avaliacoes WHERE paciente_id = ? ORDER BY data_avaliacao ASC
-        """, (int(paciente_id),))
-        dados = cursor.fetchall()
-        conn.close()
+        # Converte em formato de tuplas para manter total compatibilidade com o backend/analise_view.py
+        dados = [
+            (
+                a["data_avaliacao"],
+                a["tipo_consulta"],
+                a["teste_sentar_levantar"],
+                a["teste_tug"],
+                a["teste_tandem"],
+                a["teste_taf"],
+                a["observacoes"]
+            )
+            for a in resposta.data
+        ]
         return dados
-    except Exception:
+    except Exception as e:
+        st.error(f"Erro ao buscar histórico: {e}")
         return []
 
 def zerar_historico_do_paciente(paciente_id):
     try:
-        conn = conectar_banco()
-        cursor = conn.cursor()
-        cursor.execute("DELETE FROM avaliacoes")
-        conn.commit()
-        conn.close()
-        salvar_dados_no_github()
-        return True, "Todos os dados do Paciente foram apagados"
+        conn = st.connection("supabase", type=SupabaseConnection)
+        
+        # Correção de segurança: deleta apenas as avaliações deste paciente específico
+        conn.table("avaliacoes").delete().eq("paciente_id", int(paciente_id)).execute()
+        return True, "Todos os dados do Paciente foram apagados da nuvem"
     except Exception as e:
         return False, f"Erro ao limpar tabela: {e}"
