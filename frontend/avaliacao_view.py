@@ -30,7 +30,7 @@ def renderizar_tela_avaliacao():
     id_paciente_alvo = opcoes_pacientes[paciente_escolhido]
     
     st.write("---")
-    st.markdown(f"### Paciente: **{paciente_escolhido}**")
+    st.markdown(f"### Paciente:\n**{paciente_escolhido}**")
     
     # Formulário de lançamento estruturado na ordem exata solicitada
     with st.form("form_testes_funcionais", clear_on_submit=True):
@@ -67,7 +67,8 @@ def renderizar_tela_avaliacao():
                 
     # --- BLOCO VISUAL: PERMISSÃO PARA ZERAR A TABELA INTEIRA ---
     st.write("---")
-    st.markdown("### 🧹 Zona de Perigo — Limpeza Geral da Tabela")
+    st.markdown("### 🚫 Zona de Perigo")
+    st.write("Limpeza Geral da Tabela")
     st.markdown("Deseja apagar permanentemente **todos** os testes e avaliações já registrados na tabela do sistema?")
     
     confirmar_limpeza = st.checkbox("Confirmo que quero APAGAR TODOS os históricos de testes cadastrados no sistema.", key="chk_limpar_global")
