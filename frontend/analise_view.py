@@ -17,7 +17,7 @@ def renderizar_tela_analise():
     opcoes_pacientes = {f"{p[1]} (ID: {p[0]})": p[0] for p in todos_pacientes}
     paciente_selecionado = st.selectbox("Selecione o Paciente para visualizar a evolução:", list(opcoes_pacientes.keys()))
     id_paciente = opcoes_pacientes[paciente_selecionado]
-    nome_paciente = paciente_selecionado.split(" (ID:")
+    nome_paciente = paciente_selecionado.split(" (ID:")[0]
     
     historico = buscar_historico_paciente(id_paciente)
     
@@ -25,12 +25,12 @@ def renderizar_tela_analise():
         st.info(f"O paciente {nome_paciente} ainda não possui nenhuma avaliação registrada.")
         return
         
-    # --- PROCESSAMENTO SEGURO POR POSIÇÃO DOS DADOS ---
+    # --- PROCESSAMENTO SEGURO DOS DADOS ---
     dados_limpos = []
     for reg in historico:
         lista_reg = list(reg)
         
-        # Tratamento para registros antigos (com 6 colunas) injetando o Tipo na posição 1
+        # Se for registro antigo com 6 colunas, injeta o Tipo na posição 1
         if len(lista_reg) == 6:
             lista_reg.insert(1, "Avaliação")
             
@@ -100,10 +100,7 @@ def renderizar_tela_analise():
     st.write("---")
     st.markdown("### 📝 Prontuário / Observações Clínicas por Data")
     
-    # Ordena as observações textuais mostrando as consultas mais recentes no topo
     df_obs_invertido = df_bruto.sort_values(by="Data_Objeto", ascending=False)
-    
-    # Variável para controlar se alguma observação válida foi exibida
     exibiu_alguma_obs = False
     
     for _, column_data in df_obs_invertido.iterrows():
@@ -111,13 +108,11 @@ def renderizar_tela_analise():
         tipo_card = str(column_data["Tipo"])
         texto_obs = str(column_data["Obs"]).strip()
         
-        # ADEQUAÇÃO: O bloco IF agora descarta textos vazios, nulos ou a palavra 'None'
+        # ADEQUAÇÃO: O sistema só monta a caixa se houver um texto válido escrito (ignora vazios e nulos)
         if texto_obs and texto_obs != "None" and texto_obs != "":
             exibiu_alguma_obs = True
-            # Só desenha a caixa de texto azul se houver conteúdo real!
             st.info(f"📅 **{data_card} — {tipo_card}**\n\n{texto_obs}")
             
-    # Se o laço terminou e nenhuma data possuía observações escritas
     if not exibiu_alguma_obs:
         st.write("*Nenhuma anotação clínica foi registrada no histórico deste paciente.*")
             
