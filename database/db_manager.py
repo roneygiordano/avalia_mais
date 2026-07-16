@@ -34,12 +34,10 @@ def salvar_dados_no_github():
     url = f"https://github.com{repo}/contents/{NOME_BANCO}"
     headers = {"Authorization": f"token {token}"}
     
-    # Lê o arquivo do banco local
     with open(NOME_BANCO, "rb") as f:
         conteudo_banco = f.read()
     conteudo_base64 = base64.b64encode(conteudo_banco).decode("utf-8")
     
-    # Verifica se o arquivo já existe no GitHub para pegar o código SHA de atualização
     sha = None
     response_get = requests.get(url, headers=headers)
     if response_get.status_code == 200:
@@ -52,7 +50,6 @@ def salvar_dados_no_github():
     if sha:
         payload["sha"] = sha
         
-    # Envia o arquivo atualizado para o cofre do GitHub
     requests.put(url, json=payload, headers=headers)
 
 def conectar_banco():
@@ -60,8 +57,7 @@ def conectar_banco():
     return sqlite3.connect(NOME_BANCO, check_same_thread=False)
 
 def inicializar_tabelas():
-    """Cria a estrutura de tabelas, puxa o backup do GitHub e limpa duplicados"""
-    # 1. Tenta resgatar os dados salvos no GitHub antes de iniciar
+    """Cria a estrutura de tabelas, puxa o backup do GitHub, limpa duplicados e garante as colunas"""
     if not os.path.exists(NOME_BANCO):
         try:
             buscar_dados_do_github()
@@ -100,9 +96,15 @@ def inicializar_tabelas():
     """)
     conn.commit()
 
-    # --- FAXINA AUTOMÁTICA DE DUPLICADOS ---
+    # --- NOVO: GARANTE A COLUNA TIPO_CONSULTA CASO O ARQUIVO VINDO DO GITHUB SEJA ANTIGO ---
     try:
-        # Remove as linhas repetidas mantendo apenas o registro original (menor ID)
+        cursor.execute("ALTER TABLE avaliacoes ADD COLUMN tipo_consulta TEXT DEFAULT 'Avaliação'")
+        conn.commit()
+    except sqlite3.OperationalError:
+        pass # Se a coluna já existia no arquivo do GitHub, ignora o erro com segurança
+
+    # Faxina de duplicados nos nomes dos pacientes
+    try:
         cursor.execute("""
         DELETE FROM pacientes 
         WHERE id NOT IN (
@@ -110,8 +112,6 @@ def inicializar_tabelas():
         )
         """)
         conn.commit()
-        
-        # Envia a versão limpa imediatamente para o repositório do GitHub
         salvar_dados_no_github()
     except:
         pass
