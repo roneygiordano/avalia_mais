@@ -30,9 +30,7 @@ def renderizar_tela_avaliacao():
     id_paciente_alvo = opcoes_pacientes[paciente_escolhido]
     
     st.write("---")
-    st.markdown(f"### Paciente:
-                
-                 **{paciente_escolhido}**")
+    st.markdown(f"### Paciente: **{paciente_escolhido}**")
     
     # Formulário de lançamento estruturado na ordem exata solicitada
     with st.form("form_testes_funcionais", clear_on_submit=True):
