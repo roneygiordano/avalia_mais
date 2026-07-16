@@ -8,7 +8,7 @@ def obter_usuarios_cadastrados():
     Em uma etapa futura, isso pode ser migrado para uma tabela do banco de dados.
     """
     return {
-        "admin": "admin123",      # Perfil Administrador
+        "Liliane": "123",      # Perfil Administrador
         "usuario1": "senha123",   # Segundo usuário cadastrado
         "usuario2": "senha456"    # Terceiro usuário cadastrado
     }
