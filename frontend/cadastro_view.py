@@ -10,7 +10,7 @@ from backend.paciente import (
 )
 
 def renderizar_tela_cadastro():
-    st.subheader("📋 Gerenciamento de Pacientes")
+    st.subheader("📋 Gestão de Pacientes")
     
     # Busca todos os pacientes do banco de dados no início
     todos_pacientes = listar_todos_pacientes()
@@ -28,7 +28,7 @@ def renderizar_tela_cadastro():
     # Opções de ação do sistema
     acao = st.radio(
         "O que você deseja fazer?", 
-        ["Cadastrar Novo Paciente", "Editar Paciente Existente", "Excluir Paciente"], 
+        ["Cadastrar", "Editar", "Excluir"], 
         horizontal=True
     )
     
