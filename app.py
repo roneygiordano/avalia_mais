@@ -13,6 +13,7 @@ from frontend.login_view import renderizar_tela_login
 from frontend.cadastro_view import renderizar_tela_cadastro
 from frontend.avaliacao_view import renderizar_tela_avaliacao
 from frontend.analise_view import renderizar_tela_analise
+from frontend.prontuario_view import renderizar_tela_prontuario  # 📋 Importação da nova tela
 from backend.auth import realizar_logout
 
 # 1. Configuração Inicial e Criação do Banco de Dados
@@ -22,6 +23,7 @@ st.set_page_config(page_title="Avalia+", layout="wide", page_icon="📈")
 st.markdown("""
     <style>
         @import url('https://googleapis.com');
+        
         html, body, [data-testid="stMarkdownContainer"], .stText, .stSidebar {
             font-family: 'Inter', 'Segoe UI', Helvetica, Arial, sans-serif !important;
         }
@@ -79,7 +81,12 @@ else:
     # Menu lateral de Navegação do Avalia+
     menu = st.sidebar.radio(
         "Menu Principal:",
-        ["1. Cadastro de Pacientes", "2. Avaliações e Reavaliações", "3. Análise Gráfica e PDF"]
+        [
+            "1. Cadastro de Pacientes", 
+            "2. Avaliações e Reavaliações", 
+            "3. Análise Gráfica e PDF",
+            "4. Prontuários"  # 📋 Novo item adicionado aqui
+        ]
     )
 
     # Roteamento das telas com base na escolha do menu
@@ -91,3 +98,6 @@ else:
         
     elif menu == "3. Análise Gráfica e PDF":
         renderizar_tela_analise()
+        
+    elif menu == "4. Prontuários":
+        renderizar_tela_prontuario()  # 📋 Direciona para a nova view criada
