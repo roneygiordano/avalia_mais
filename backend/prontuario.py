@@ -27,3 +27,16 @@ def listar_prontuario_por_paciente(paciente_id):
         return resposta.data
     except Exception:
         return []
+
+def deletar_registro_prontuario(paciente_id, data_texto):
+    """Deleta o registro de prontuário do paciente em uma data específica"""
+    try:
+        conn = st.connection("supabase", type=SupabaseConnection)
+        conn.table("prontuarios") \
+            .delete() \
+            .eq("paciente_id", int(paciente_id)) \
+            .eq("data_atendimento", str(data_texto)) \
+            .execute()
+        return True, f"✅ Registro do dia {data_texto} excluído com sucesso!"
+    except Exception as e:
+        return False, f"Erro ao excluir registro: {e}"
